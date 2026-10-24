@@ -1,6 +1,29 @@
-# devin-skills
+# HPYvideo-skills
 
 Devin CLI 自定义 skills 仓库。
+
+## English
+
+Custom [Devin CLI](https://devin.ai) skills for producing short vertical (9:16) knowledge videos for the Chinese IP "AI不焦虑君" (Douyin, Xiaohongshu, Kuaishou, WeChat Channels).
+
+**`ai-video-factory`** is a gated, human-in-the-loop production workflow:
+
+1. **Script fact-check** – every data point needs a dated source; on-screen source labels.
+2. **Shot semantic design** – for each sentence, classify its logic (list, comparison, correction "not A but B", reveal, quote, …), state what the viewer must understand, and pick the matching shot form from a mandatory mapping table. Reviewed by the user before any code is written.
+3. **Voice** – user generates narration in ElevenLabs with a locked voice profile.
+4. **TimingMap** – deterministic sentence alignment (silence gaps + dynamic programming, no ASR); all visuals and SFX are anchored to it.
+5. **Real assets** – brand logos, public-domain/CC photos, original documents, fair-quote screenshots, or clearly labelled AI illustrations; each recorded in a manifest with source, license basis and SHA256.
+6. **Optional talking-head presenter** – MuseTalk 1.5 on CPU, resumable and frame-verified, with mouth post-processing.
+7. **Render** – Remotion procedural motion graphics + asset animations + CC0 / procedural sound effects, a cover frame, 1.25× pitch-preserved speed-up and loudness normalisation.
+8. **QA** – machine checks (ffprobe/ffmpeg), a "mute read-through" self-check, and human gates (lip-sync, face, semantics, assets, pacing, SFX, cover, facts).
+
+It also includes an implementation guide for 15 visual styles (Bauhaus geometric, flat vector, sticker explainer, cyberpunk HUD, isometric 2.5D, collage, hand-drawn, line drawing, morphing, liquid transitions, variety-show captions, synthwave, pixel, watercolor, 3D), with an interactive style picker, and lessons learned from real episodes.
+
+Files: `SKILL.md` (workflow), `shots_assets.md` (shot semantics + asset layer), `styles.md` (15 styles), `lessons.md` (post-mortems and measured baselines). Content is written in Chinese.
+
+> Paths inside the skill refer to the author's local machine (Windows + WSL2, Intel iGPU, no CUDA) and must be adapted before use elsewhere.
+
+---
 
 ## 目录
 
