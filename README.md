@@ -8,8 +8,9 @@ Devin CLI 自定义 skills 仓库。
 skills/
 └── ai-video-factory/          # AI不焦虑君 竖屏知识短视频生产流程 + 15种视觉风格实现手册
     ├── SKILL.md               # 主流程（门禁、授权点、命令）
+    ├── shots_assets.md        # 镜头语义设计对照表 + 真实素材来源/版权/组件
     ├── styles.md              # 15 种风格的 Remotion 实现方式
-    └── lessons.md             # 上一集实测基线与踩坑记录
+    └── lessons.md             # 前两集复盘、实测基线与踩坑记录
 ```
 
 ## 使用方式
@@ -26,7 +27,7 @@ skill 需要放在 Devin 能扫描到的位置才会被识别：
 ## 同步约定
 
 工作副本在 `%APPDATA%\devin\skills\ai-video-factory\`（全局生效的那份）。
-改动后把三个文件同步回本仓库再提交，保持两边一致；以仓库版本为准。
+改动后把全部文件同步回本仓库再提交，保持两边一致；以仓库版本为准。
 
 ## 注意
 
