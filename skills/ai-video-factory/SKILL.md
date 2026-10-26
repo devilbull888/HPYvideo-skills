@@ -17,7 +17,7 @@ allowed-tools:
 
 **开始前必须先读完本目录下另外三个文件：**
 - `C:\Users\黄品颖\AppData\Roaming\devin\skills\ai-video-factory\shots_assets.md`：**镜头语义设计 + 真实素材层**（逻辑关系→镜头形式对照表、素材来源与版权分级、素材类镜头组件）。每集必读
-- `C:\Users\黄品颖\AppData\Roaming\devin\skills\ai-video-factory\styles.md`：15 种风格的实现方式，用户选了风格编号时必读
+- `C:\Users\黄品颖\AppData\Roaming\devin\skills\ai-video-factory\styles.md`：00 + 15 种整片风格（编号同用户文档）、多变风格规则、IP 锚点套件，每集必读
 - `C:\Users\黄品颖\AppData\Roaming\devin\skills\ai-video-factory\lessons.md`：历集踩过的坑和对应修法，开工前必读
 - `tools/audit_timing.mjs`（本目录下）：时序审计脚本，初始化时复制进新沙盒，阶段 G 20.1 强制运行
 
@@ -94,17 +94,18 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 
 用户没有明确指定风格时，**在阶段 A 脚本确认之后、阶段 D 样片之前**执行本节。用户已经点名某个风格的，跳过，但要复述一遍你理解的是哪种风格、效果是什么。
 
-**第一步：先输出完整风格表。** 把 `styles.md` 里全部 15 种风格整理成一张编号表贴给用户（编号、名称、一句话效果、适合什么内容、层级[主/功能/叙事/动画手法/冻结]），并标出你根据脚本推荐的 1–3 个及理由。动画手法（线条绘制/形变/液体转场/开场花字）单独列出，注明可叠加。
+风格是**整片风格**，规则见 `styles.md` 第 0 节（多变风格四条规则、IP 锚点套件）。
 
-**第二步：`ask_user_question` 收敛选择**（每题最多 4 个选项，所以弹窗只放推荐项，其余靠编号表+Other）：
+**第一步：查轮换。** 读 `D:\OPC\ledger\opc.db` 最近 3 集的 `episodes.style_id`，这 3 种本集不推荐（用户点名除外）。
 
-- 问题 1，header "视觉风格"：最多放 4 个你推荐的候选（label 末尾加"（推荐）"，description 写一句适配理由）；用户想要表里的其他风格时选 Other 填编号。
-- 问题 2，header "动画手法"，多选：线条绘制 / 形变 / 液体转场 / 开场花字。
+**第二步：输出完整风格表。** 列出 00–15 全部 16 种（编号、名称、一句话画风、适合什么选题、档位、渲染成本、是否最近 3 集用过），标出你按"选题适配度 + 新鲜度"推荐的 1–3 种及理由。
+
+**第三步：`ask_user_question` 收敛**：header "本集风格"，放最多 4 个推荐候选（label 末尾加"（推荐）"），其他风格由用户选 Other 填编号。
 
 **选完以后：**
-1. 用 2–3 行复述最终组合，例如"主风格几何白底 + 功能风格贴纸科普 + 动画手法：线条绘制、形变"。
-2. 说明哪 2 个镜头会先做成新风格样片。
-3. 打开 `styles.md` 里对应章节，按里面的做法实现。
+1. 复述：本集风格编号与名称，以及该风格的五件事（材质/线条、配色、镜头、运动、文字）和"别做成"清单。
+2. 说明这一风格在 9:16 口播里的适配做法（`styles.md` 对应条目的"口播适配"），以及需要特别处理的冲突（例如 09 的慢动作与 1.25 倍速）。
+3. 进入阶段 D 的 6 张关键帧门禁。
 
 **如果 `ask_user_question` 工具不可用：** 只输出第一步的编号表，请用户回复编号即可。
 
@@ -173,13 +174,16 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 9.2 每个素材登记到 `data/assets_manifest.json`：文件名、SHA256、来源 URL、作者/权利人、许可证或使用依据、用在哪个镜头、下载日期；另加 `canonical_form`（为什么选这个形象）和 `processing`（下载后的裁剪/转换记录）。CC BY 类素材要在画面角标或简介里署名。
 9.3 ★ 把素材清单交给用户确认后才能用进成片，清单包含：缩略图联系表 + manifest 表格 + **按目标显示尺寸渲染的预览图**（LOGO 类必须有，因为容器缩放会暴露空白边/占比问题；第二集费大厨官网原图 2813×1025 有效内容只占左侧，原样渲染缩成一个点）。确认时重点看"是否是受众一眼认出的形象"和"画面里清不清晰"。
 
-### 阶段 D：风格样片（新风格必做，主风格可以跳过；风格先按第 2.5 节弹窗选定）
-10. 渲染 10–20 秒样片，选数据卡或流程镜头。
-    - 命令：`node tools/render.mjs stills <帧列表>`，然后 `node tools/render.mjs video <from> <to> out/trial.mp4`
-    - 再跑 `python3 tools/qa.py out/trial.mp4`，并出联系表。
-11. ★ 用户看样片，判断三点：手机上中文是否可读、是否有高级感、是否符合 IP 调性。
-    - 通过的版本冻结成风格包。
-    - 不通过的记录原因；返工超过 3 轮就停。
+### 阶段 D：6 张关键帧门禁（每集必做，在写动画之前；风格先按第 2.5 节选定）
+10. 用本集真实内容渲染 6 张静帧（`node tools/render.mjs stills <帧列表>`，每张几秒）：
+    ① 钩子帧 ② 数据帧 ③ 流程/论证帧 ④ 数字人 + 字幕帧 ⑤ 转场中间帧（检验该风格的转场语法） ⑥ 结尾 CTA 帧。
+    - 拼成一张 `out/keyframes_v<n>.jpg` 联系图。
+    - 交付前逐张对照 `styles.md` 该风格的"画风规则"和"别做成"清单自查，结果写进汇报（例如"06：无圆角 ✓、无过冲 ✓、只用红黄蓝黑 ✓"）。
+    - 同时检查 IP 锚点套件是否齐全（角标、数字人卡、字幕、slogan 卡）。
+11. ★ 用户看关键帧，判断：风格是否到位、手机上是否可读、IP 锚点是否在。
+    - 风格问题在这一步改静帧解决，不要带进动画。返工超过 3 轮就停。
+    - 首次使用的风格通过后，写 `style_packs/<id>/STYLE.md`（参数、关键帧哈希、渲染实测、返工轮数）。
+    - 动画阶段可以先渲染 10–20 秒动态样片确认运动语法，但不再作为风格对齐的主要手段。
 
 ### 阶段 E：数字人（可选，需要授权）
 12. 在 `tools/run_presenters.sh` 里写好每段的 `id start_s end_s source_offset`。
@@ -275,6 +279,17 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 
 23. 把所有意见合并成一次修改，再请求授权重新合成 v(n+1)。两项都通过才算 FINAL_READY。
 24. 交付时附上：成片路径、SHA256、联系表、封面 PNG、QA JSON，以及实测耗时和费用（推理、渲染、付费调用）。
+
+### 阶段 H：入账与数据回填（每集交付后 + 发布后）
+25. 交付 FINAL_READY 时，在生产账本登记本集：编辑 `D:\OPC\ledger\seed_episodes.py` 的 `EPISODES`（episode_id、标题、栏目、风格编号、数字人秒数、帖子标题关键词），运行后会自动关联到平台帖子。
+26. 发布后按 T+1 / T+3 / T+7 天采集视频号数据（只读、每天最多一次）：
+    ```
+    powershell.exe -NoProfile -Command "cd D:\OPC\ledger; .\.venv\Scripts\python.exe -X utf8 channels_stats.py"
+    ```
+    - 登录态保存在 `D:\OPC\ledger\profiles\channels\`（私密，不入仓库）；过期时会弹出 Edge 让用户扫码。
+    - 已校准字段：`readCount` 播放、`likeCount`、`commentCount`、`forwardCount` 转发、`favCount`、`followCount` 涨粉、`fullPlayRate` 完播率、`avgPlayTimeSec` 平均观看秒数、`fastFlipRate` 快速划走率。原始响应留在 `raw/channels/<时间>/`，字段变化时校准后用 `--reparse` 重解析。
+    - 视频号助手也有官方"导出数据"，可作交叉校验。
+27. 看数据：`python opc_ledger.py report`。**至少积累 15–20 条再按风格、栏目、钩子类型下结论**；在那之前，数据只用于发现明显问题（例如快速划走率 >60% 说明前 3 秒钩子失效）。
 
 ## 4. 汇报格式
 - 中文汇报，结论先行，然后用表格列出产物路径、哈希、耗时。
