@@ -18,7 +18,8 @@ allowed-tools:
 **开始前必须先读完本目录下另外三个文件：**
 - `C:\Users\黄品颖\AppData\Roaming\devin\skills\ai-video-factory\shots_assets.md`：**镜头语义设计 + 真实素材层**（逻辑关系→镜头形式对照表、素材来源与版权分级、素材类镜头组件）。每集必读
 - `C:\Users\黄品颖\AppData\Roaming\devin\skills\ai-video-factory\styles.md`：15 种风格的实现方式，用户选了风格编号时必读
-- `C:\Users\黄品颖\AppData\Roaming\devin\skills\ai-video-factory\lessons.md`：前两集踩过的坑和对应修法，开工前必读
+- `C:\Users\黄品颖\AppData\Roaming\devin\skills\ai-video-factory\lessons.md`：历集踩过的坑和对应修法，开工前必读
+- `tools/audit_timing.mjs`（本目录下）：时序审计脚本，初始化时复制进新沙盒，阶段 G 20.1 强制运行
 
 **v2 的核心改变：** 画面不再是"把旁白关键词套进模板"，而是先回答"这句话要让观众看懂什么"，再决定画面。纯文字+几何的镜头最多占全片一半，其余镜头必须有和文案强相关的真实素材（LOGO、人物照片、原始文件/截图）或明确的视觉比喻。
 
@@ -70,21 +71,24 @@ allowed-tools:
 
 ```bash
 NEW=/mnt/d/OPC/sandbox/<episode-id>-<yyyymmdd>
-REF=/mnt/d/OPC/sandbox/stylepack-trial-muse-20261018
-mkdir -p $NEW/{inputs,data,out,public,work,assets}
-cp -r $REF/src $REF/tools $REF/package.json $REF/tsconfig.json $REF/remotion.config.ts $NEW/
-cp -r $REF/assets/sfx $NEW/assets/ && cp -r $REF/public/sfx $NEW/public/
+REF=/mnt/d/OPC/sandbox/peixun-20261024
+SKILL=/mnt/c/Users/黄品颖/AppData/Roaming/devin/skills/ai-video-factory
+mkdir -p $NEW/{inputs,data,out,public,work}
+cp -r $REF/src $REF/tools $REF/style_packs $REF/package.json $REF/tsconfig.json $REF/remotion.config.ts $NEW/
+cp -r $REF/public/sfx $REF/public/textures $NEW/public/
 cp $REF/public/cover_person.jpg $NEW/public/
+cp $SKILL/tools/audit_timing.mjs $NEW/tools/
 ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 ```
 
-- **不要复制** `out/`、`work/`、`inputs/`、`data/` 和 `public/presenter_*`。这些都属于上一集。
+- 参考实现取第四集 `peixun-20261024`（v10 FINAL_READY）：已含 6f 交叉淡化的 `Shot`、双段联播 `PresenterCard`、`SUF` 通用后缀、Windows 内存守卫修复（读不到即不安全，`tools/winmem_writer.ps1` 兜底）、9 号剪报风格包。参考沙盒只读。
+- **不要复制** `out/`、`work/`、`inputs/`、`data/` 和 `public/presenter_*`、`public/voice_*`。这些都属于上一集。
 - 复制完要做三件事：
-  1. 把 `tools/presenter.py`、`tools/run_presenters.sh`、`tools/align_sentences.py` 里的路径和文件名（`script_A`、`voice_A`）改成新一集的。
+  1. 工具脚本用环境变量 `SUF=<集后缀>` 指定 `script_<SUF>`/`voice_<SUF>`/`timing_<SUF>`，不要再手改文件名；`src/timing.ts` 的 import 改成新的 `timing_<SUF>.json`。
   2. 把 `Root.tsx` 里的合成 id 改成新一集的。
-  3. 把 `Episode.tsx` 里的镜头整体替换掉。上一集的镜头组件可以复用，但文案、锚点和音效 cue 都要重写。
+  3. 把 `Episode.tsx` 里的镜头整体替换掉。上一集的镜头组件可以复用，但文案、锚点和音效 cue 都要重写；数字人窗口（`PRESENTERS`）只在一处定义，`PresenterCard` 和 `run_presenters.sh` 都从它推导，不写死秒数。
 - 最后执行 `npx tsc --noEmit`，类型检查必须通过。
-- **可选依赖（默认不装）：** `budoux`（中文短语分词断行）、`@remotion/layout-utils`（文本测量）。默认方案是多行文本在数据里按短语手动 `\n` 预分 + `whiteSpace:"nowrap"`，第二集实测够用；只有文本量大或需要动态断行时才安装，联网安装前单独授权。
+- **依赖策略：** `node_modules` 是所有沙盒共享的软链接，**禁止 npm 安装任何包**（会影响全部沙盒）。中文断行用数据里按短语手动 `\n` 预分 + `whiteSpace:"nowrap"`（第二集实测够用）；`budoux`/`@remotion/layout-utils` 不用。确需新依赖时停下请用户决定。
 
 ## 2.5 风格选择（先展示全部 15 种，再弹窗收敛）
 
@@ -121,7 +125,8 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
    - `text`：必须和配音逐字一致
    - `presenter`：是否数字人出镜，可选
    - `claim`：来源，可选
-   - 数字人只用在 2–3 处：开场钩子、中段判断句、结尾 CTA。每段 4–7 秒，合计不超过约 16 秒，控制推理时间。
+   - 数字人只用在 2–3 处：开场钩子、中段判断句、结尾 CTA。每段 4–7 秒，合计约 16 秒是**推理成本的软约束**：为了"句子念完"或"同段连续在场"可以超出，在汇报里写明即可；不能为了卡预算剪掉句尾。
+   - 相邻两段间隔 <8 秒、语义上属于同一段（例如结尾的"判断→提问→slogan"）时，合并成一张卡连续在场，不要退场再进场。
 4. ★ 交给用户确认脚本和事实口径。
 4.1 脚本确认后，如果用户还没指定风格，立即按第 2.5 节弹窗让用户选风格和动画手法。
 
@@ -156,6 +161,9 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
    - 句尾停顿太短时，就把相邻两句合并成一句。
 9. **所有画面和音效时间都从 TimingMap 推导**：`startF`、`endF`、`wordFrame(sid, "词")`。禁止手写帧号。
    - **关键信息要在旁白说到之前或同时出现**，不能晚于旁白 0.3 秒以上。例如"不是AI，是网友"，"网友"这一侧必须在说到"网友"时已经是画面主体（第二集这里晚了 2.5 秒，画面和旁白矛盾）。
+   - **语义画面跟字位进场，不跟句子的形式起点**：画面在"这句话开始讲这个意思"的那个字进场。例如承诺卡要跟着"对方说"进场，不是等下一句句首（第四集 v6）。
+   - **锚在句尾字位的元素要算停驻**：从入场到镜头切走 <45 帧（1×）就是一闪而过，宁可提前到句中字位进场（第四集 S06/S07/S09/S10 都是这样）。会"出现又消失"的动画（例如虚阶坠落），出现到消失之间 <30 帧就是闪烁，宁可常驻。
+   - 每个镜头的锚点同时写进 `src/audit.ts`，供阶段 G 的时序审计使用，见第 20.1 步。
 
 ### 阶段 C2：真实素材采集（按 `shots_assets.md` 第 2 节）
 9.1 按镜头表里的"真实素材"列逐项采集，"两者结合"：
@@ -175,7 +183,10 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 
 ### 阶段 E：数字人（可选，需要授权）
 12. 在 `tools/run_presenters.sh` 里写好每段的 `id start_s end_s source_offset`。
-    - 时间窗取自 TimingMap，起止各留约 0.2 秒余量。
+    - 时间窗取自 TimingMap，起止各留约 0.2 秒余量。**窗口尾 ≥ 该段最后一句句尾 + 0.2 秒是硬规则**，"话没说完人就没了"是第四集返工最多的问题（P01"学费"那一句前后出了 3 次）。尾帧可以断点续推，成本只是增量几帧。
+    - 退场：窗口最后 ≥18 帧渐隐 + 轻微下沉缩小（"说着话淡出"），禁止 ≤8 帧纯透明度闪没；`PresenterCard` 播完要随窗口渐出，不能留空壳卡片。
+    - 合并段用 `PresenterCard` 的双段联播（`id2` + `splitS`），配合 `moveAt/top2/scale2` 在新句进场时把小卡平滑移到大卡位。
+    - 延长已推过的窗口时，先删 `work/presenter/<P>/body16k.wav` 和 `audio_features.npy`（音频缓存会对长度做断言），帧缓存保留续用。
     - 各段的 `source_offset` 要错开，避免几段动作一样。母版共 192 帧，往返循环使用（`source_index`）。
     - 每段 `N = round((end-start)*24)` 帧。
 13. 请求授权前先做只读检查：
@@ -204,6 +215,7 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
     - 转场用 whoosh，音量约 0.22；重点用 thud；列表项用 tick 或 pop；数字用 scroll 加 confirm；数据揭示用 bong。
     - 音效音量控制在 0.18–0.5，不能盖过人声。
     - **镜头之间不能有空档**：前一个镜头要一直保持到下一个镜头开始。
+    - **转场默认值**：`Shot` 统一 6 帧交叉淡化（`from-6` 挂载淡入，`to-6` 起淡出），不要退回硬切。元素入场动画按成片时长来定：1.25 倍速后 10 帧只剩约 0.27 秒，入场至少 14 帧，退场至少 12 帧。
 18. 封面：`Cover` 合成，15 帧，内容如下：
     - 真人原片的闭口微笑帧（`public/cover_person.jpg`）。**不要用生成的嘴**。
     - 蓝色副标题条
@@ -223,6 +235,15 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
     - `finalize.py` 做的事：画面和声音一起加速 1.25 倍（`setpts` + `atempo`，音高不变，口型仍然同步）；前面接 0.5 秒封面；`loudnorm I=-16`；`-shortest` 去掉尾部多出的静音。
 
 ### 阶段 G：验收
+20.1 **时序审计（硬门禁，在整片渲染之前跑，不过就不渲染、不交片）：**
+    ```
+    node tools/audit_timing.mjs src/audit.ts 1.25
+    ```
+    - `src/audit.ts` 导出 `AUDIT = { shots, elements, presenters }` 和 `SENTENCES`，**必须从 `Episode.tsx` 用的同一组常量（A / 镜头边界 / PRESENTERS）推导，禁止手写帧号**。字段格式见脚本头部注释。
+    - 检查内容：可读元素停驻 ≥45 帧；入场不晚于对应字位 9 帧；镜头间死帧 ≤15 帧；数字人窗口尾 ≥ 句尾 +0.2 秒；退场渐隐 ≥18 帧；数字人相邻间隔 <8 秒时提示合并（同段用同一 `group` 消除提示）。
+    - 有 FAIL 就退出码 1，结果写入 `out/audit_timing.json`，汇报时附上 FAIL/WARN 数量。
+    - 背景：这些规则第四集之前就写在 skill 里，但只靠抽帧"看元素出没出现"，没有逐元素核算帧数，结果同类问题返工了 5 轮以上。规则必须由脚本来执行。
+
 20. 机器 QA（`tools/qa.py`）检查：
     - 解码、1080×1920、30fps、帧数
     - 有音轨，音画时长差不超过 1 帧
