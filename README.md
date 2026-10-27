@@ -21,7 +21,7 @@ Custom [Devin CLI](https://devin.ai) skills for producing short vertical (9:16) 
 
 It also includes an implementation guide for 15 visual styles (Bauhaus geometric, flat vector, sticker explainer, cyberpunk HUD, isometric 2.5D, collage, hand-drawn, line drawing, morphing, liquid transitions, variety-show captions, synthwave, pixel, watercolor, 3D), with an interactive style picker, and lessons learned from real episodes.
 
-Files: `SKILL.md` (workflow), `shots_assets.md` (shot semantics + asset layer), `styles.md` (15 styles), `lessons.md` (post-mortems and measured baselines). Content is written in Chinese.
+Files: `SKILL.md` (workflow), `shots_assets.md` (shot semantics + asset layer), `styles.md` (15 styles), `lessons.md` (post-mortems and measured baselines), `hooks.md` (hook swipe file: three-layer hooks, taxonomy, fill-in formulas). Content is written in Chinese.
 
 > Paths inside the skill refer to the author's local machine (Windows + WSL2, Intel iGPU, no CUDA) and must be adapted before use elsewhere.
 
@@ -35,7 +35,8 @@ skills/
     ├── SKILL.md               # 主流程（门禁、授权点、命令）
     ├── shots_assets.md        # 镜头语义设计对照表 + 真实素材来源/版权/组件
     ├── styles.md              # 15 种风格的 Remotion 实现方式
-    └── lessons.md             # 前两集复盘、实测基线与踩坑记录
+    ├── lessons.md             # 前两集复盘、实测基线与踩坑记录
+    └── hooks.md               # 钩子库：三层钩子、类型、填空公式、本账号档案
 ```
 
 ## 使用方式
