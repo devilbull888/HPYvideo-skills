@@ -295,6 +295,14 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
     - 已校准字段：`readCount` 播放、`likeCount`、`commentCount`、`forwardCount` 转发、`favCount`、`followCount` 涨粉、`fullPlayRate` 完播率、`avgPlayTimeSec` 平均观看秒数、`fastFlipRate` 快速划走率。原始响应留在 `raw/channels/<时间>/`，字段变化时校准后用 `--reparse` 重解析。
     - 视频号助手也有官方"导出数据"，可作交叉校验。
 27. 看数据：`python opc_ledger.py report`。**至少积累 15–20 条再按风格、栏目、钩子类型下结论**；在那之前，数据只用于发现明显问题（例如快速划走率 >60% 说明前 3 秒钩子失效）。
+28. **数据纪律（2026-10-27 定）**：
+    - **噪声地板约 ±10 个百分点**：不烧心同一钩子两次发布，划走率 52% vs 63%。小于 10 个百分点的差异视为噪声。
+    - **决策规则**：同一类钩子（或风格、时长）至少 3 条，且与对照组差距 >15 个百分点，才调整策略；不满足就继续积累，不凭单条改方向。
+    - **每集只主动测一个变量**，在 `seed_episodes.py` 的 `TEST_VARIABLE` 里写明；其余尽量保持不变（默认 00 号风格、同栏目同时长）。同时改多项的标 `confounded`。
+    - **样本速度优先于分析精度**：当前瓶颈是条数，不是工具。不为分析去扩工具链。
+    - **多平台发布**：同一成片同步发抖音（创作者中心有 5 秒完播率，是比视频号快速划走率更直接的钩子信号）。抖音数据接入前先人工录入账本。
+    - 视频号"快速划走率"的官方口径（几秒内划走）待核实，核实后写在这里。
+29. **对标参考**：同赛道、同形态（口播 + 动画）、点赞明显偏高的视频，只记前 5 秒——口播原文、第一帧画面、标题、封面——归入钩子库。由用户手机观看记录即可；需要逐帧看画面节奏时，用户在抖音 App 里"保存本地"后，再用 §5 的拆解工具跑本地文件（不要折腾 cookie 下载）。
 
 ## 4. 汇报格式
 - 中文汇报，结论先行，然后用表格列出产物路径、哈希、耗时。
@@ -307,3 +315,4 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 |---|---|---|
 | **Cinetic**（MIT，`ecfa660`） | `D:\OPC\refs\cinetic` | 273 个动效技法的候选池，已按关键词粗分到 00–15 风格：`D:\OPC\refs\cinetic_map.md`。在阶段 A2 镜头设计时，**在已选风格对应的候选池里挑 2–4 个技法**人工确认后用，避免每条片都是同样的淡入/推镜/结尾卡。**不引入它的整条流水线**（面向无口播 16:9 宣传片，和我们的口播节奏冲突）。可参考它写法的文件：`av-audit.py`、`layout-audit.sh`、`lint-film.mjs`、`review-loop.md`、`timing-grid.md`、`craft-rules.md`。宣传片类需求（栏目片头、客户视频）可在独立沙盒整套试用 |
 | 12 号风格复用库 | 本 skill `styles/style12-handdrawn/` | 用法见该目录 `STYLE.md` |
+| **viral-video-breakdown**（MIT，已冻结备用） | `D:\OPC\refs\viral-video-breakdown`（独立 `.venv`；模型放在 `D:\OPC\models`，因为 sentencepiece 在 Windows 下打不开中文路径，本地补丁 2 处） | 只跑本地文件：`.venv\Scripts\python.exe -X utf8 scripts\run_viral_video.py --source-video <mp4> --out-dir D:\OPC\breakdown\<名> --comments off --speaker off`。局限：中文识别结果没有分句时间戳；`story_analysis.md` 只是模板，需要人工精修；抖音链接下载要 cookie，不稳定。**不要拿来拆自家视频**（TimingMap 更准），用完删掉输出 |
