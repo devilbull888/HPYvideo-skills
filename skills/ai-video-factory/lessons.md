@@ -114,3 +114,26 @@ v1→v10 返工的根因：停驻、对齐、数字人余量的规则**早已写
 
 - 规则盲区（已立规）：两段数字人窗口间隔 <8s 且语义上属同一"段"（如结尾 判断句→提问→slogan）时，应合并为一张卡连续在场，不要"退场再入场"；≤16s 预算是成本控制软约束，可为连贯性让路。
 - 实现：PresenterCard 支持 id2+splitS 双段联播（一张卡播两个 Sequence，人在场不中断）；配合 moveAt/top2/scale2 可在新句进场时平滑移动几何（小卡→大卡"走上前来"）。窗口延长仍走断点续跑：同起点时旧帧全部续用，只推增量帧。
+
+## 第五集 aibanlu 进行中（2026-10-26～27，12 号手绘线条首用）
+
+### 已验证新资产/管线
+
+- **Rough.js vendored**（MIT，unpkg roughjs@4.6.6 bundled/rough.esm.js，~166KB）→ `src/vendor/`，禁 npm 规则下单文件 vendoring 合规。`rough.generator({seed})` 产生双描边/弯曲/毛边，seed 做变体轮换。适配层：Drawable.sets[].ops → SVG path d（move/lineTo/bcurveTo）。
+- **Excalidraw 社区库**（libraries.excalidraw.com，全库 MIT）→ `tools/exlib_convert.mjs` 把 .excalidrawlib 元素（line/freedraw/ellipse/rect/diamond，text 跳过）转成归一化点集 `exlib-data.ts` → `ExItem` 组件（含 strokeWidth 缩放补偿 + draw-on 入场）。**内容质量远胜自画简笔**，情绪向选题优先用 drwnio/storytelling（16 个笔记本前情绪小人）与 youritjang/stick-figures。
+- **手写体 ZCOOL KuaiLe**（OFL，google/fonts repo）→ `public/fonts/` + `delayRender` 等 FontFace 加载；场景内文字标签换手写体是风格升级里肉眼最见效的一步（字幕/IP 锚点仍用原字体）。
+
+### 踩过的坑
+
+- **SVG 内放 `<div>` 静默不渲染**：`<Sketch>`(svg) 里的文字标签必须 `<text>`；初版全部 Hand label 死了一轮才发现。
+- **测试片加速链**：`asetrate=R*1.25,aresample=R,atempo=0.8` 的实际效果是时长不变+音调 +25%（用户看到"嘴型过快"）。加速且保调就用 `atempo=1.25`（finalize.py 同链），别再手写 asetrate 组合。
+- **12fps 抖动要按成片速率反推**：线条变体切换率 ×1.25 = 成片观感。目标 ~6/s（用户实测选定）→ 1× 需 4.8/s → 槽位 `[6,7,6,6]`。候选参考：12/s 成片过快发躁；6/s 成片用户确认合适。关键帧静帧评审验不了动感，12 号必须加渲 10s 动图切片（styles.md 阶段 D 已提示但未强制，建议立规）。
+
+### 已沉淀（2026-10-28 整理入库）
+
+以上条目已正式立规，本节保留作历史记录：
+
+- Rough.js vendoring、exlib 转换流水线、ZCOOL KuaiLe、描边层级、纸面融合、IP 角标手绘版 → `styles/style12-handdrawn/STYLE.md` + `styles.md` §12；
+- SVG 禁放 HTML 元素、atempo 变速链 → SKILL.md §F；
+- 12fps 抖动按成片速率校准 + 动效测试卡 → SKILL.md 阶段 D（已立规为强制项，不只针对 12 号，所有含持续微动效的风格都要）；
+- 多作者素材统一 strokeWidth/roughness → shots_assets.md §2.5。
