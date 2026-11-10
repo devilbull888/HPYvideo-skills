@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Timing audit gate. Usage (sandbox root): node tools/audit_timing.mjs [src/audit.ts] [speed=1.25]
+// Timing audit gate. Usage (sandbox root): node tools/audit_timing.mjs [src/audit.ts] [speed=1.5]
 // src/audit.ts must `export const AUDIT = { shots, elements, presenters }` built from the SAME
 // anchors as Episode.tsx (import A / SHOTS / PRESENTERS + SENTENCES from timing.ts). Never hand-type frames.
 //   shots:      [{ id, from, to }]                        frames, 1x
@@ -13,15 +13,17 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const entry = process.argv[2] || "src/audit.ts";
-const speed = Number(process.argv[3] || 1.25);
+const speed = Number(process.argv[3] || 1.5);
 const FPS = 30;
+// Perceived (final-video) targets; 1x frame thresholds derive from speed (1.25 -> 45/18, 1.5 -> 54/22).
+const READ_OUT_S = 1.2, FADE_OUT_S = 0.48;
 const R = {
-  minReadF: 45,        // readable element on screen >= 1.5s at 1x
-  maxLateF: 9,         // element may not enter later than its word + 0.3s
+  minReadF: Math.ceil(READ_OUT_S * speed * FPS),    // readable element >= 1.2s in the final video
+  maxLateF: 9,         // element may not enter later than its word + 0.3s (1x; stricter as speed rises)
   presTailS: 0.2,      // presenter window end >= last sentence end + 0.2s
   presMergeGapS: 8,    // gaps < 8s between presenter windows -> merge if same segment
-  deadF: 15,           // >0.5s with no shot covering the timeline
-  minFadeOutF: 18,
+  deadF: 15,           // >0.5s (1x) with no shot covering the timeline
+  minFadeOutF: Math.ceil(FADE_OUT_S * speed * FPS), // presenter fade-out >= 0.48s in the final video
 };
 
 const outfile = path.resolve("work/.audit_bundle.mjs");
@@ -47,7 +49,7 @@ for (const e of AUDIT.elements || []) {
   const outF = e.out_f ?? shot.to;
   const dwell = outF - e.in_f;
   if (e.readable !== false && dwell < R.minReadF)
-    add("FAIL", "dwell>=45f", `${e.shot}/${e.name}`, `on screen ${dwell}f (${sec(dwell)} 1x, ${out(dwell)}) @${sec(e.in_f)}`);
+    add("FAIL", `dwell>=${R.minReadF}f`, `${e.shot}/${e.name}`, `on screen ${dwell}f (${sec(dwell)} 1x, ${out(dwell)}) @${sec(e.in_f)}`);
   if (e.word_f != null && e.in_f - e.word_f > R.maxLateF)
     add("FAIL", "late<=9f", `${e.shot}/${e.name}`, `enters ${e.in_f - e.word_f}f after its word @${sec(e.word_f)}`);
   if (e.in_f < shot.from || e.in_f >= shot.to) add("WARN", "in-shot", `${e.shot}/${e.name}`, `in_f ${e.in_f} outside shot ${shot.from}-${shot.to}`);
@@ -65,7 +67,7 @@ const pres = [...(AUDIT.presenters || [])].sort((a, b) => a.start_s - b.start_s)
 for (const p of pres) {
   const need = (sEnd[p.last_sid] ?? NaN) + R.presTailS;
   if (!(p.end_s >= need - 1e-3)) add("FAIL", "presenter-tail", p.id, `end ${p.end_s}s < ${p.last_sid} end+0.2 = ${need.toFixed(2)}s`);
-  if (p.fade_out_f != null && p.fade_out_f < R.minFadeOutF) add("FAIL", "fade>=18f", p.id, `fade-out ${p.fade_out_f}f`);
+  if (p.fade_out_f != null && p.fade_out_f < R.minFadeOutF) add("FAIL", `fade>=${R.minFadeOutF}f`, p.id, `fade-out ${p.fade_out_f}f`);
 }
 for (let i = 1; i < pres.length; i++) {
   const gap = pres[i].start_s - pres[i - 1].end_s;

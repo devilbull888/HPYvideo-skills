@@ -17,7 +17,7 @@
 
 1. 新沙盒初始化时复制 `vendor/`、`tools/`、`sketch/`、`fonts/`。字体 `@font-face` 注册（`public/fonts/` 下，remotion 的 `staticFile`）。
 2. **抖动线条**：每个元素的 path 用 seed 化 `rough.generator()` 生成，`useMemo` 按 `[base, seed, variant]` 记忆；wobble 不要重算 path，走 `pick([...标签], [帧段模式])` 在 3–4 个预生成变体间轮换。**禁止顶点随机抖动**（会像矢量图坏掉）。
-3. **wobble 节奏按成片校准**（1.25× 之后）：第五集定稿 `pick(['bold','bold','bold','semibold'], [6,7,6,6])`，1× 约 12/s → 成片约 6/s。12/s 在成片里显紧张，先用 `[3,4,3,4]` 验证过仍偏快。**新 wobble 图案必须在动效测试卡里按成片速率看效果**。
+3. **wobble 节奏按成片校准**（1.25× 之后）：第五集定稿 `pick(['bold','bold','bold','semibold'], [6,7,6,6])`，1× 约 12/s → 成片约 6/s。12/s 在成片里显紧张，先用 `[3,4,3,4]` 验证过仍偏快。**新 wobble 图案必须在动效测试卡里按成片速率看效果**。注意：成片默认已改 1.5×（2026-11），同一槽位成片约 7.2/s，要维持约 6/s 需把槽位放慢到约 `[7,8,7,8]`，下次用本风格时在测试卡里确认。
 4. **描边层级**（按语义权重，不是随手给）：bold 3px / roughness 1.8（主元素）、semibold 2.4/1.4、fine 1.6/0.9、文字线 1.2/0.6。混用不同作者的 exlib 素材时按这套层级统一 strokeWidth/roughness，否则画面割裂。
 5. **exlib 素材流水线**：
    - 从 Excalidraw 社区库下载 `.excalidrawlib`（逐个核验许可，记进 manifest）；

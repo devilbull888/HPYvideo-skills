@@ -1,6 +1,6 @@
 ---
 name: ai-video-factory
-description: AI不焦虑君 竖屏知识短视频生产流程（脚本核验→镜头语义设计表→ElevenLabs配音→TimingMap→真实素材采集（LOGO/人物/原始文件）→可选MuseTalk数字人→Remotion动画+素材动效+音效→封面→1.25倍速成片→机器QA+静音读图自检→人工门禁），含15种视觉风格的实现方式。做新一条口播视频或试新风格时使用。
+description: AI不焦虑君 竖屏知识短视频生产流程（脚本核验→镜头语义设计表→ElevenLabs配音→TimingMap→真实素材采集（LOGO/人物/原始文件）→可选MuseTalk数字人→Remotion动画+素材动效+音效→封面→1.5倍速成片→机器QA+静音读图自检→人工门禁），含15种视觉风格的实现方式。做新一条口播视频或试新风格时使用。
 argument-hint: "<脚本或选题> [风格编号1-15]"
 triggers:
   - user
@@ -62,7 +62,7 @@ allowed-tools:
 | 音效素材 | `assets/sfx/kenney_interface/`（Kenney Interface Sounds，CC0）+ `tools/make_sfx.py` 程序合成的 whoosh/thud；产物在 `public/sfx/*.wav` |
 | 声音档案（已锁定） | ElevenLabs，音色 Yu，模型 v4，参数 `pvc_sp120_s40_sb40`，用户在网页端自己生成并下载 |
 | 数字人母版 | `h3_source.mp4`（192 帧，24fps）+ 已有的几何/latent 缓存。只能用这个人物，换人需要重建缓存（另行授权） |
-| 实测成本 | 数字人每帧 8.4–8.8 秒（CPU），每段另加 26–82 秒模型加载；整片 2063 帧 Remotion 渲染约 98–128 秒，峰值内存约 0.9 GB |
+| 实测成本 | 数字人每帧 8.4–8.8 秒（CPU），每段另加 26–82 秒模型加载；整片 2063 帧 Remotion 渲染约 98–128 秒，峰值内存约 0.9 GB（ep1）；ep7 8030 帧（1×268 秒，04 风格）渲染 25–50 分钟，4 段数字人推理 1.5–2 小时。**片子越长、风格越重，越要先做第 17.1 条最坏帧审片再全渲** |
 
 **工具环境注意：**
 - 工具会预先展开命令里的 `$VAR`，所以命令里要写完整路径，不要用 shell 变量。
@@ -75,17 +75,20 @@ allowed-tools:
 
 ```bash
 NEW=/mnt/d/OPC/sandbox/<episode-id>-<yyyymmdd>
-REF=/mnt/d/OPC/sandbox/peixun-20261024
+REF=/mnt/d/OPC/sandbox/nvda-20261109
 SKILL=/mnt/c/Users/黄品颖/AppData/Roaming/devin/skills/ai-video-factory
 mkdir -p $NEW/{inputs,data,out,public,work}
 cp -r $REF/src $REF/tools $REF/style_packs $REF/package.json $REF/tsconfig.json $REF/remotion.config.ts $NEW/
 cp -r $REF/public/sfx $REF/public/textures $NEW/public/
 cp $REF/public/cover_person.jpg $NEW/public/
+cp $REF/work/montage.py $REF/work/test_wrap.mjs $NEW/work/
 cp $SKILL/tools/audit_timing.mjs $NEW/tools/
 ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 ```
+（以上命令含 `$变量`，按第 1 节环境注意，用 Python 或完整路径执行。）
 
-- 参考实现取第四集 `peixun-20261024`（v10 FINAL_READY）：已含 6f 交叉淡化的 `Shot`、双段联播 `PresenterCard`、`SUF` 通用后缀、Windows 内存守卫修复（读不到即不安全，`tools/winmem_writer.ps1` 兜底）、9 号剪报风格包。参考沙盒只读。
+- 参考实现取第七集 `nvda-20261109`（ep7 验收发布）：在第四集 peixun 的基础上（6f 交叉淡化 `Shot`、双段联播 `PresenterCard`、`SUF` 后缀、Windows 内存守卫）新增了字幕 `wrap()` 第二版、逐镜 `FOCUS` 边界反推放大、`finalize.py` 的 `-` 不拼封面支路、最坏帧审片 `work/montage.py`、断行回归测试 `work/test_wrap.mjs`。参考沙盒只读。
+- 复制来的 `src/templates/NvdaShots*.tsx` 是 ep7 专用镜头，新集要换掉；04 号风格组件已抽到 `styles/style04-retro/`。ep7 沙盒**没有 `src/audit.ts`**，新集必须自己建（见第 20.1 条）。
 - **不要复制** `out/`、`work/`、`inputs/`、`data/` 和 `public/presenter_*`、`public/voice_*`。这些都属于上一集。
 - 复制完要做三件事：
   1. 工具脚本用环境变量 `SUF=<集后缀>` 指定 `script_<SUF>`/`voice_<SUF>`/`timing_<SUF>`，不要再手改文件名；`src/timing.ts` 的 import 改成新的 `timing_<SUF>.json`。
@@ -108,7 +111,7 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 
 **选完以后：**
 1. 复述：本集风格编号与名称，以及该风格的五件事（材质/线条、配色、镜头、运动、文字）和"别做成"清单。
-2. 说明这一风格在 9:16 口播里的适配做法（`styles.md` 对应条目的"口播适配"），以及需要特别处理的冲突（例如 09 的慢动作与 1.25 倍速）。
+2. 说明这一风格在 9:16 口播里的适配做法（`styles.md` 对应条目的"口播适配"），以及需要特别处理的冲突（例如 09 的慢动作与 1.5 倍速）。
 3. 进入阶段 D 的 6 张关键帧门禁。
 
 **如果 `ask_user_question` 工具不可用：** 只输出第一步的编号表，请用户回复编号即可。
@@ -116,11 +119,15 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
 ## 3. 流水线（按顺序做，每个 ★ 处停下等用户）
 
 ### 阶段 A：选题和脚本
+0. **选题**（用户没给选题时）：用 TrendRadar 选题系统 `D:\OPC\tools\TrendRadar`（`tools/topic_radar.py` 抓热榜 → `output/topics/*.json` 选题卡，含热度、国内/海外来源、可信度、钩子初稿），挑 5 个候选给用户选（弹窗分页）。
+   - **选题热度是目前最强的单一信号**：热点事件 / 热梗（ep1、ep2、ep7）划走率 36–52%，小众痛点和情感（ep3–ep6）64–81%。ep7 播放是此前最好集的约 8 倍。
+   - **热点切入，讲出可迁移的知识**：从有社会讨论热度的事件进入，但落到"和 AI、和你有什么关系"的干货与"不焦虑"结论，不做八卦复述（ep7：婚外情事件 → 4.5 万亿公司的接班人风险）。
+   - **已知短板：流量没有转化成互动**。ep7 播放 3098，点赞 / 评论 / 转发 / 涨粉都是 0。写脚本时要在 15–30 秒附近把事件拉回到"和你有关"，互动问题设计成好回答的二选一，不只放在结尾。
 1. 先核验用户给的脚本或选题。每个数据点都给出：来源、日期、原文要点、是否需要改写。
    - 不要断言官方理由是假的。
    - 不要夸大，例如把"挡在门外"说成"全面封禁"。
 2. 改成口播稿：
-   - **不设时长上限**（2026-11 用户决定：时长不是质量关键因素，平台也有 2–5 分钟长视频），语速约 4.5–5 字/秒，成片 1.25 倍速。改查**信息密度**：每句都要给出新信息（新事实、新证据、新转折或新问题），空泛铺垫句删掉。反例：ep5 S02"不用先问你忙不忙，也不用担心自己说得太多"。
+   - **不设时长上限**（2026-11 用户决定：时长不是质量关键因素，平台也有 2–5 分钟长视频），语速约 4.5–5 字/秒，成片 **1.5 倍速**（2026-11 起默认，ep7 用户验收确认节奏更好；ep1–ep6 是 1.25 倍）。改查**信息密度**：每句都要给出新信息（新事实、新证据、新转折或新问题），空泛铺垫句删掉。反例：ep5 S02"不用先问你忙不忙，也不用担心自己说得太多"。
    - 前 3 秒是钩子，不要用"哈喽大家好"开场。按 `hooks.md` 执行：
      - **三层钩子都要写齐**：口播钩（第一句）、画面钩（第一帧主体）、文字钩（第一帧大字，≤14 字，不等于口播原文）。三层各自独立成立、分工不复读。
      - **先出 3 个候选**：用 `hooks.md` 第 5 节里 3 个不同类型的公式各写一版（至少一个停留钩、一个留存钩），每版写成"口播 / 画面 / 文字 / 封面主标题 / 发布标题"五行（封面和标题按 `hooks.md` 第 8 节），标出类型和公式编号，附推荐理由，交给用户在第 4 步一起选。
@@ -197,7 +204,7 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
     - 风格问题在这一步改静帧解决，不要带进动画。返工超过 3 轮就停。
     - 首次使用的风格通过后，写 `style_packs/<id>/STYLE.md`（参数、关键帧哈希、渲染实测、返工轮数）。
     - 动画阶段可以先渲染 10–20 秒动态样片确认运动语法，但不再作为风格对齐的主要手段。
-    - **含持续微动效的风格（12 手绘抖动、02 液态、04 扫描线等）：6 张关键帧之外必须加渲一段 5–10 秒动效测试卡**（wobble 频率/幅度、素材同框、数字人同屏），按 1.25× 成片速率看——静帧发现不了抖动太密、描边打架这类问题（ep5 教训）。
+    - **含持续微动效的风格（12 手绘抖动、02 液态、04 扫描线等）：6 张关键帧之外必须加渲一段 5–10 秒动效测试卡**（wobble 频率/幅度、素材同框、数字人同屏），按 1.5× 成片速率看——静帧发现不了抖动太密、描边打架这类问题（ep5 教训）。
 
 ### 阶段 E：数字人（可选，需要授权）
 12. 在 `tools/run_presenters.sh` 里写好每段的 `id start_s end_s source_offset`。
@@ -233,7 +240,10 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
     - 转场用 whoosh，音量约 0.22；重点用 thud；列表项用 tick 或 pop；数字用 scroll 加 confirm；数据揭示用 bong。
     - 音效音量控制在 0.18–0.5，不能盖过人声。
     - **镜头之间不能有空档**：前一个镜头要一直保持到下一个镜头开始。
-    - **转场默认值**：`Shot` 统一 6 帧交叉淡化（`from-6` 挂载淡入，`to-6` 起淡出），不要退回硬切。元素入场动画按成片时长来定：1.25 倍速后 10 帧只剩约 0.27 秒，入场至少 14 帧，退场至少 12 帧。
+    - **转场默认值**：`Shot` 统一 6 帧交叉淡化（`from-6` 挂载淡入，`to-6` 起淡出），不要退回硬切。元素入场动画按成片时长来定：1.5 倍速后 10 帧只剩约 0.22 秒，入场至少 17 帧，退场至少 15 帧（成片约 0.37 秒 / 0.33 秒，与 1.25 倍时代的 14 / 12 帧观感一致）。
+    - **字幕断行（`Page.tsx` 的 `wrap()`，参考实现 nvda 第二版）**：断词绝对不可接受，孤行可以接受。顺序：①标点级回填（只能整段搬上一行末标点后的完整分句尾，禁止逐字偷字）→ ②收窄重排（每行容量 14→13→12 重跑）→ ③接受短尾孤行。超长无标点句在中点 ±3 字内优先找标点切，**禁止在拉丁或数字串内部切**（AI、Megaspeed、4.5 保持整词）；最后一道把行首标点回填到上一行。**改了 `wrap()` 必须跑 `node work/test_wrap.mjs`**（复制 wrap 跑全部口播句，报行首标点 / 孤行 / 拉丁断词三类违规）。
+    - **单行元素一律 `whiteSpace: "nowrap"`**（日期芯片、数字标签、短标签、铬字）：ep7 "11月8日"被折成"11月8 / 日"。
+17.1 **先审最坏帧，再渲全片**：每次改完镜头，先渲每个镜头 70% 处的帧（focus 放大最大处）拼成 `out/audit_sheet.jpg`（参考实现 `work/montage.py`，约 1 分钟），全局查裁切、遮挡、越界，合格才全渲。全片渲染 25–50 分钟，这一步能省掉大部分返工渲染。
     - **SVG 场景内禁止放 HTML 元素**：`<div>` 放进 `<svg>` 会整块消失（ep5 一次丢 20 多处标签）。标签用 SVG `<text>`，或放到 SVG 外层。
 18. 封面：`Cover` 合成，**只输出 PNG 用于平台上传，不拼进正片**。文案和画面按 `hooks.md` 第 8 节（点击钩），使用阶段 A 选定的封面主标题：
     - 真人原片的闭口微笑帧（`public/cover_person.jpg`）或真实 LOGO/实物做主体，占画面 ≥1/3。**不要用生成的嘴**。
@@ -248,19 +258,20 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
     ffmpeg -v error -y -i out/cover_00000.png -vf scale=180:-1 out/cover_thumb180.png
     ffmpeg -v error -y -i out/cover_00000.png -vf "crop=iw:iw*4/3" out/cover_crop34.png
     PROPS='{"presenterVariant":"fix","sfx":true}' node tools/render.mjs video 0 <duration_f-1> out/<ep>_v1_1x.mp4
-    python3 tools/finalize.py out/<ep>_v1_1x.mp4 - out/<ep>_v1.mp4 1.25
+    python3 tools/finalize.py out/<ep>_v1_1x.mp4 - out/<ep>_v1.mp4 1.5
     python3 tools/qa.py out/<ep>_v1.mp4
     ```
-    - `finalize.py` 做的事：画面和声音一起加速 1.25 倍（`setpts` + `atempo`，音高不变，口型仍然同步）；`loudnorm I=-16`；`-shortest` 去掉尾部多出的静音。第二个参数写 `-` 表示不接封面（默认）；传封面 mp4 仍兼容旧做法，只在用户明确要求时使用。
-    - 任何需要听成片节奏的地方（预览、音画对齐检查）一律用 `atempo=1.25`（保音高）。**禁止 `asetrate` 变速链**：它改相对时序，会让数字人口型看起来过快（ep5 实测踩坑）。
+    - `finalize.py` 做的事：画面和声音一起加速 1.5 倍（`setpts` + `atempo`，音高不变，口型仍然同步）；`loudnorm I=-16`；`-shortest` 去掉尾部多出的静音。第二个参数写 `-` 表示不接封面（默认）；传封面 mp4 仍兼容旧做法，只在用户明确要求时使用。
+    - 任何需要听成片节奏的地方（预览、音画对齐检查）一律用 `atempo=1.5`（保音高）。**禁止 `asetrate` 变速链**：它改相对时序，会让数字人口型看起来过快（ep5 实测踩坑）。
 
 ### 阶段 G：验收
 20.1 **时序审计（硬门禁，在整片渲染之前跑，不过就不渲染、不交片）：**
     ```
-    node tools/audit_timing.mjs src/audit.ts 1.25
+    node tools/audit_timing.mjs src/audit.ts 1.5
     ```
+    - **每集都必须有 `src/audit.ts`**：ep7 沙盒没有建，这道门禁被整个跳过了。
     - `src/audit.ts` 导出 `AUDIT = { shots, elements, presenters }` 和 `SENTENCES`，**必须从 `Episode.tsx` 用的同一组常量（A / 镜头边界 / PRESENTERS）推导，禁止手写帧号**。字段格式见脚本头部注释。
-    - 检查内容：可读元素停驻 ≥45 帧；入场不晚于对应字位 9 帧；镜头间死帧 ≤15 帧；数字人窗口尾 ≥ 句尾 +0.2 秒；退场渐隐 ≥18 帧；数字人相邻间隔 <8 秒时提示合并（同段用同一 `group` 消除提示）。
+    - 检查内容（帧数按 1 倍速计，阈值由倍速自动换算，成片观感不变）：可读元素停驻成片 ≥1.2 秒（1.5 倍 = 54 帧，1.25 倍 = 45 帧）；入场不晚于对应字位 9 帧；镜头间死帧 ≤15 帧；数字人窗口尾 ≥ 句尾 +0.2 秒；数字人退场渐隐成片 ≥0.48 秒（1.5 倍 = 22 帧）；数字人相邻间隔 <8 秒时提示合并（同段用同一 `group` 消除提示）。
     - 有 FAIL 就退出码 1，结果写入 `out/audit_timing.json`，汇报时附上 FAIL/WARN 数量。
     - 背景：这些规则第四集之前就写在 skill 里，但只靠抽帧"看元素出没出现"，没有逐元素核算帧数，结果同类问题返工了 5 轮以上。规则必须由脚本来执行。
 
@@ -290,7 +301,7 @@ ln -s /mnt/d/OPC/video-producer-v0/node_modules $NEW/node_modules
       | | S | 风格一致：字体、颜色在该风格白名单内 |
       | 记录 | — | 其他观察记低 |
 
-    - **补充检查**（审核者顺带看，问题按影响归入上表级别）：三层钩子（口播 / 画面 / 文字）是否都在、互不复读；再钩点那一镜画面有没有明显变化；逻辑符号（≠、→、⊘、编号、占比格）与这句话的真实逻辑一致；关键信息在旁白说到时已出现；可读元素完整可读 ≥1.5 秒（1×）；中文关键词没被换行劈开；素材在卡片里清晰可辨，示意图带常驻角标；纯文字镜头不超过一半。
+    - **补充检查**（审核者顺带看，问题按影响归入上表级别）：三层钩子（口播 / 画面 / 文字）是否都在、互不复读；再钩点那一镜画面有没有明显变化；逻辑符号（≠、→、⊘、编号、占比格）与这句话的真实逻辑一致；关键信息在旁白说到时已出现；可读元素成片完整可读 ≥1.2 秒；中文关键词没被换行劈开；素材在卡片里清晰可辨，示意图带常驻角标；纯文字镜头不超过一半。
     - **证据规则**：每个问题必须写镜头号 + 秒数/帧号，写不出位置的不算；通过项不写。
     - **返回格式**（≤25 行，存 `out/review_v<n>.md`）：总评一句 → 问题表 `| 镜头 | 帧/秒 | 检查项 | 问题 | 严重度 |` → F 统计 → G、H 各一句 → audit 结论一句（含元素登记是否覆盖每镜焦点元素）。
     - **处理**：有高 → 修复后只复审受影响镜头，最多 2 轮，仍有高则带报告交用户决定；中 → 本集修，修复需重推数字人或重配音的写进报告留给下集；用户在第 22 条门禁收到的是审核报告 + 成片，不再逐项自查。
